@@ -1,0 +1,1439 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kommandozentrale</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e0e10;
+    --surface: #18181c;
+    --surface2: #222228;
+    --border: #2e2e38;
+    --accent: #c8a96e;
+    --accent2: #7c9e87;
+    --accent3: #c47e7e;
+    --accent4: #7e8ec4;
+    --text: #e8e4dc;
+    --muted: #7a7a88;
+    --urgent: #e07070;
+    --done: #5a9970;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    padding: 0;
+    overflow-x: hidden;
+  }
+
+  /* GRAIN OVERLAY */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 1000;
+    opacity: 0.35;
+  }
+
+  header {
+    padding: 2.5rem 2rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: flex-end;
+    gap: 2rem;
+    background: linear-gradient(180deg, #141418 0%, transparent 100%);
+  }
+
+  .logo {
+    font-family: 'Playfair Display', serif;
+    font-size: 2rem;
+    font-weight: 900;
+    color: var(--accent);
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+
+  .logo span {
+    display: block;
+    font-size: 0.7rem;
+    font-family: 'DM Mono', monospace;
+    font-weight: 300;
+    color: var(--muted);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+
+  .today-pill {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 0.3rem 0.8rem;
+    border-radius: 100px;
+    margin-left: auto;
+  }
+
+  /* TABS */
+  .tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    overflow-x: auto;
+  }
+
+  .tab {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 1rem 1.4rem;
+    cursor: pointer;
+    color: var(--muted);
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .tab:hover { color: var(--text); }
+  .tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+
+  .tab-dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: middle;
+    background: currentColor;
+    opacity: 0.7;
+  }
+
+  /* MAIN CONTENT */
+  .content {
+    padding: 2rem;
+    max-width: 1200px;
+  }
+
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* SECTION TITLE */
+  .section-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 0.3rem;
+  }
+
+  .section-sub {
+    font-size: 0.82rem;
+    color: var(--muted);
+    margin-bottom: 2rem;
+    font-weight: 300;
+  }
+
+  /* CARDS GRID */
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.2rem;
+    margin-bottom: 2rem;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+
+  .card:hover { border-color: var(--accent); }
+
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--card-accent, var(--accent));
+  }
+
+  .card-icon {
+    font-size: 1.4rem;
+    margin-bottom: 0.8rem;
+  }
+
+  .card-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin-bottom: 0.4rem;
+    color: var(--text);
+  }
+
+  .card-body {
+    font-size: 0.83rem;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  .card-tag {
+    display: inline-block;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.2rem 0.6rem;
+    border-radius: 100px;
+    background: var(--surface2);
+    color: var(--muted);
+    margin-top: 0.8rem;
+  }
+
+  /* ====== CAPTURE BOX ====== */
+  .capture-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+  }
+
+  .capture-box h3 {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 1rem;
+  }
+
+  .capture-input {
+    display: flex;
+    gap: 0.8rem;
+    align-items: center;
+    margin-bottom: 0.8rem;
+  }
+
+  .capture-input input, .capture-input select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.88rem;
+    padding: 0.65rem 1rem;
+    border-radius: 8px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .capture-input input { flex: 1; }
+  .capture-input input:focus { border-color: var(--accent); }
+
+  .capture-input select {
+    min-width: 160px;
+    cursor: pointer;
+  }
+
+  .btn {
+    background: var(--accent);
+    color: #1a1510;
+    border: none;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.65rem 1.2rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    white-space: nowrap;
+  }
+
+  .btn:hover { opacity: 0.85; }
+
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* TASK LIST */
+  .task-list { display: flex; flex-direction: column; gap: 0.5rem; }
+
+  .task-item {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.8rem 1rem;
+    transition: all 0.2s;
+  }
+
+  .task-item:hover { border-color: var(--border); background: var(--surface2); }
+
+  .task-item.done {
+    opacity: 0.45;
+    text-decoration: line-through;
+  }
+
+  .task-check {
+    width: 18px; height: 18px;
+    border: 1.5px solid var(--border);
+    border-radius: 50%;
+    cursor: pointer;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    font-size: 0.6rem;
+    color: transparent;
+  }
+
+  .task-item.done .task-check {
+    background: var(--done);
+    border-color: var(--done);
+    color: white;
+  }
+
+  .task-text {
+    flex: 1;
+    font-size: 0.88rem;
+  }
+
+  .task-area {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.06em;
+    padding: 0.2rem 0.6rem;
+    border-radius: 100px;
+    background: var(--surface2);
+    color: var(--muted);
+    flex-shrink: 0;
+  }
+
+  .area-kita { --a: var(--accent2); color: var(--accent2); }
+  .area-waldorf { --a: var(--accent4); color: var(--accent4); }
+  .area-vorstand { --a: var(--accent3); color: var(--accent3); }
+  .area-privat { --a: var(--accent); color: var(--accent); }
+
+  .task-del {
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 0.8rem;
+    padding: 0 0.3rem;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .task-item:hover .task-del { opacity: 1; }
+
+  /* PRIORITY MATRIX */
+  .matrix {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .matrix-cell {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.2rem;
+    min-height: 140px;
+  }
+
+  .matrix-cell h4 {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .matrix-cell.q1 h4 { color: var(--urgent); }
+  .matrix-cell.q2 h4 { color: var(--accent2); }
+  .matrix-cell.q3 h4 { color: var(--accent); }
+  .matrix-cell.q4 h4 { color: var(--muted); }
+
+  .matrix-cell .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  .matrix-item {
+    font-size: 0.8rem;
+    color: var(--muted);
+    padding: 0.35rem 0;
+    border-bottom: 1px solid var(--border);
+    cursor: default;
+  }
+
+  .matrix-item:last-child { border-bottom: none; }
+
+  /* TIMER */
+  .timer-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2rem;
+    text-align: center;
+    margin-bottom: 2rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .timer-section::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 50% 0%, rgba(200,169,110,0.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .timer-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 1rem;
+  }
+
+  .timer-display {
+    font-family: 'Playfair Display', serif;
+    font-size: 4rem;
+    font-weight: 900;
+    color: var(--accent);
+    letter-spacing: -0.02em;
+    margin-bottom: 0.5rem;
+    line-height: 1;
+  }
+
+  .timer-task-display {
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin-bottom: 1.5rem;
+    min-height: 1.2rem;
+    font-style: italic;
+  }
+
+  .timer-btns {
+    display: flex;
+    gap: 0.8rem;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .timer-presets {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+    margin-top: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .preset-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    padding: 0.35rem 0.8rem;
+    border-radius: 100px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .preset-btn:hover, .preset-btn.active {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* FINANCE */
+  .finance-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .finance-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.2rem;
+    position: relative;
+  }
+
+  .finance-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 0.5rem;
+  }
+
+  .finance-amount {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .finance-amount.positive { color: var(--accent2); }
+  .finance-amount.negative { color: var(--accent3); }
+
+  .finance-sub {
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-top: 0.3rem;
+  }
+
+  /* CHECKLIST */
+  .checklist {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  .check-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.8rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.8rem 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .check-item:hover { background: var(--surface2); }
+
+  .check-item input[type="checkbox"] {
+    width: 16px; height: 16px;
+    accent-color: var(--accent);
+    flex-shrink: 0;
+    margin-top: 1px;
+    cursor: pointer;
+  }
+
+  .check-item label {
+    font-size: 0.85rem;
+    cursor: pointer;
+    line-height: 1.5;
+  }
+
+  .check-item label strong {
+    display: block;
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  .check-item label small {
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-weight: 300;
+  }
+
+  /* REVIEW SECTION */
+  .review-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+  }
+
+  @media (max-width: 600px) {
+    .review-grid { grid-template-columns: 1fr; }
+    .matrix { grid-template-columns: 1fr; }
+    .timer-display { font-size: 3rem; }
+  }
+
+  .review-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+  }
+
+  .review-block h3 {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 1rem;
+  }
+
+  .review-block textarea {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.85rem;
+    padding: 0.8rem;
+    border-radius: 8px;
+    resize: vertical;
+    min-height: 100px;
+    outline: none;
+    line-height: 1.6;
+  }
+
+  .review-block textarea:focus { border-color: var(--accent); }
+
+  /* PRINCIPLE BOX */
+  .principle {
+    background: linear-gradient(135deg, rgba(200,169,110,0.08) 0%, rgba(124,158,135,0.05) 100%);
+    border: 1px solid rgba(200,169,110,0.3);
+    border-radius: 12px;
+    padding: 1.2rem 1.5rem;
+    margin-bottom: 1.2rem;
+    position: relative;
+  }
+
+  .principle::before {
+    content: attr(data-n);
+    position: absolute;
+    top: -8px;
+    left: 1.2rem;
+    background: var(--bg);
+    padding: 0 0.5rem;
+    font-family: 'Playfair Display', serif;
+    font-size: 0.8rem;
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  .principle h4 {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 0.4rem;
+  }
+
+  .principle p {
+    font-size: 0.8rem;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  /* AREA LEGEND */
+  .legend {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+
+  .legend-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+  }
+
+  /* PROGRESS BAR */
+  .progress-bar {
+    height: 4px;
+    background: var(--surface2);
+    border-radius: 100px;
+    overflow: hidden;
+    margin-top: 0.8rem;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 100px;
+    transition: width 0.5s ease;
+  }
+
+  .progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--muted);
+    margin-top: 0.4rem;
+  }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* Empty state */
+  .empty {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.82rem;
+    padding: 2rem;
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    font-style: italic;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    Kommandozentrale
+    <span>Dein persönliches Betriebssystem</span>
+  </div>
+  <div class="today-pill" id="dateDisplay"></div>
+</header>
+
+<div class="tabs">
+  <div class="tab active" onclick="showTab('guide')"><span class="tab-dot"></span>System</div>
+  <div class="tab" onclick="showTab('capture')"><span class="tab-dot"></span>Capture</div>
+  <div class="tab" onclick="showTab('matrix')"><span class="tab-dot"></span>Prioritäten</div>
+  <div class="tab" onclick="showTab('timer')"><span class="tab-dot"></span>Focus Timer</div>
+  <div class="tab" onclick="showTab('finance')"><span class="tab-dot"></span>Finanzen</div>
+  <div class="tab" onclick="showTab('review')"><span class="tab-dot"></span>Wochencheck</div>
+</div>
+
+<div class="content">
+
+  <!-- ====== SYSTEM / GUIDE ====== -->
+  <div class="panel active" id="panel-guide">
+    <div class="section-title">Dein Anti-Prokrastinations-System</div>
+    <div class="section-sub">Maßgeschneidert für Kita-Leitung · Regionalkreis · Paritätischer · Privates</div>
+
+    <div class="cards">
+      <div class="card" style="--card-accent: var(--accent2);">
+        <div class="card-icon">🧠</div>
+        <div class="card-title">GTD — Alles raus aus dem Kopf</div>
+        <div class="card-body">Jede Aufgabe, jeder Gedanke sofort in den Capture-Tab. Kein mentales Festhalten mehr. Der Kopf ist zum Denken da, nicht zum Erinnern.</div>
+        <div class="card-tag">Getting Things Done</div>
+      </div>
+
+      <div class="card" style="--card-accent: var(--accent4);">
+        <div class="card-icon">🍅</div>
+        <div class="card-title">Pomodoro — Kleiner Einstieg</div>
+        <div class="card-body">25 Min konzentriert, 5 Min Pause. Der Tab "Focus Timer" ist bereit. Prokrastination entsteht oft am Anfang — 25 Minuten kannst du immer.</div>
+        <div class="card-tag">Focus Timer →</div>
+      </div>
+
+      <div class="card" style="--card-accent: var(--accent3);">
+        <div class="card-icon">⬛</div>
+        <div class="card-title">MIT — Die 3 wichtigsten Aufgaben</div>
+        <div class="card-body">Jeden Morgen: Was sind heute meine 3 Most Important Tasks? Erst die, dann alles andere. Kein Tag ohne diese 3 Anker.</div>
+        <div class="card-tag">Most Important Tasks</div>
+      </div>
+
+      <div class="card" style="--card-accent: var(--accent);">
+        <div class="card-icon">📦</div>
+        <div class="card-title">Eisenhower — Was wirklich zählt</div>
+        <div class="card-body">Dringend/Wichtig trennen. Paritätischer-Aufgaben wirken dringend, sind aber oft delegierbar. Dein Wohl und die Finanzen sind wichtig, aber nie dringend.</div>
+        <div class="card-tag">Prioritäten-Matrix →</div>
+      </div>
+
+      <div class="card" style="--card-accent: var(--accent2);">
+        <div class="card-icon">📅</div>
+        <div class="card-title">Time Blocking — Blöcke statt Listen</div>
+        <div class="card-body">Plane Aufgaben wie Termine: "Dienstag 17–18 Uhr: Finanzen" steht im Kalender und wird eingehalten. To-do-Listen ohne Zeitblock sind Wünsche.</div>
+        <div class="card-tag">Kalenderintegration</div>
+      </div>
+
+      <div class="card" style="--card-accent: var(--accent4);">
+        <div class="card-icon">🔄</div>
+        <div class="card-title">Weekly Review — Sonntag 20 Min</div>
+        <div class="card-body">Einmal pro Woche: Was liegt offen? Was kommt? Was war gut? Ohne Review kollabiert jedes System innerhalb von 2 Wochen.</div>
+        <div class="card-tag">Wochencheck →</div>
+      </div>
+    </div>
+
+    <div class="section-title" style="font-size: 1.1rem; margin-bottom: 1.2rem;">Die 7 Grundprinzipien für dich</div>
+
+    <div class="principle" data-n="01">
+      <h4>Sofort-Capture, später Entscheiden</h4>
+      <p>Jede Aufgabe wird sofort festgehalten — ohne nachzudenken, ob sie wichtig ist. Sortieren kommt später. Das entlastet das Arbeitsgedächtnis enorm.</p>
+    </div>
+
+    <div class="principle" data-n="02">
+      <h4>2-Minuten-Regel</h4>
+      <p>Wenn eine Aufgabe unter 2 Minuten dauert → sofort erledigen. Nicht aufschreiben, nicht planen. E-Mail beantworten, kurz anrufen, unterschreiben.</p>
+    </div>
+
+    <div class="principle" data-n="03">
+      <h4>Bereiche trennen</h4>
+      <p>Kita, Regionalkreis, Paritätischer, Privat sind 4 verschiedene Hüte. Aufgaben nie vermischen. Wenn du im Kita-Modus bist, siehst du nur Kita-Aufgaben.</p>
+    </div>
+
+    <div class="principle" data-n="04">
+      <h4>Nächste physische Aktion</h4>
+      <p>"Finanzen regeln" ist kein Task. "Kontoauszüge Januar herunterladen" schon. Jede Aufgabe muss eine konkrete nächste Handlung haben.</p>
+    </div>
+
+    <div class="principle" data-n="05">
+      <h4>Regelmäßige Termine für wiederkehrende Aufgaben</h4>
+      <p>Finanzen: jeden 1. des Monats, 1 Stunde. Posteingang leeren: Montag + Donnerstag. Wiederkehrendes braucht einen festen Platz, sonst fällt es durch.</p>
+    </div>
+
+    <div class="principle" data-n="06">
+      <h4>Energie-bewusstes Planen</h4>
+      <p>Schwierige Aufgaben morgens, wenn die Energie hoch ist. Mails + Admin nachmittags. Gegen deine Energie zu arbeiten kostet doppelt so viel Willenskraft.</p>
+    </div>
+
+    <div class="principle" data-n="07">
+      <h4>Gut genug schlägt perfekt</h4>
+      <p>Perfektionismus ist die eleganteste Form der Prokrastination. 80% erledigt ist infinit besser als 100% geplant. Fertig > perfekt.</p>
+    </div>
+
+  </div>
+
+  <!-- ====== CAPTURE ====== -->
+  <div class="panel" id="panel-capture">
+    <div class="section-title">Capture — Raus aus dem Kopf</div>
+    <div class="section-sub">Alles sofort festhalten, keine Filterung. Dein Denken bleibt frei.</div>
+
+    <div class="capture-box">
+      <h3>⚡ Neue Aufgabe erfassen</h3>
+      <div class="capture-input">
+        <input type="text" id="taskInput" placeholder="Was beschäftigt dich gerade? …" onkeydown="if(event.key==='Enter') addTask()">
+        <select id="areaSelect">
+          <option value="kita">🌱 Kita-Leitung</option>
+          <option value="waldorf">🌀 Regionalkreis</option>
+          <option value="vorstand">🏛️ Paritätischer</option>
+          <option value="privat">💛 Privat / Finanzen</option>
+        </select>
+        <select id="prioritySelect">
+          <option value="normal">Normal</option>
+          <option value="hoch">🔴 Hoch</option>
+          <option value="niedrig">⚪ Niedrig</option>
+        </select>
+        <button class="btn" onclick="addTask()">+ Hinzufügen</button>
+      </div>
+    </div>
+
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:var(--accent2)"></div> Kita-Leitung</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--accent4)"></div> Waldorf-Koordination</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--accent3)"></div> Kreisvorstand</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div> Privat</div>
+    </div>
+
+    <div style="display:flex; gap:0.5rem; margin-bottom:1rem; flex-wrap:wrap;">
+      <button class="preset-btn active" onclick="filterTasks('all', this)">Alle</button>
+      <button class="preset-btn" onclick="filterTasks('kita', this)">Kita</button>
+      <button class="preset-btn" onclick="filterTasks('waldorf', this)">Regionalkreis</button>
+      <button class="preset-btn" onclick="filterTasks('vorstand', this)">Paritätischer</button>
+      <button class="preset-btn" onclick="filterTasks('privat', this)">Privat</button>
+      <button class="preset-btn" onclick="filterTasks('done', this)">✓ Erledigt</button>
+    </div>
+
+    <div class="task-list" id="taskList">
+      <div class="empty" id="emptyState">Noch keine Aufgaben. Fang an zu erfassen — alles, was dir gerade im Kopf herumschwirrt.</div>
+    </div>
+
+    <div style="margin-top:1.5rem; display:flex; gap:0.8rem; align-items:center;">
+      <button class="btn-ghost" onclick="clearDone()">Erledigte löschen</button>
+      <div id="taskStats" style="font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--muted);margin-left:auto;"></div>
+    </div>
+  </div>
+
+  <!-- ====== PRIORITÄTEN-MATRIX ====== -->
+  <div class="panel" id="panel-matrix">
+    <div class="section-title">Eisenhower-Matrix</div>
+    <div class="section-sub">Dringend vs. Wichtig — wo soll deine Energie wirklich hin?</div>
+
+    <div class="matrix">
+      <div class="matrix-cell q1">
+        <h4><span class="dot"></span> Dringend + Wichtig → Sofort tun</h4>
+        <div id="q1-items">
+          <div class="matrix-item">Kita-Personalnotfall lösen</div>
+          <div class="matrix-item">Paritätischer-Sitzung vorbereiten (heute)</div>
+          <div class="matrix-item">Krankschreibung einreichen</div>
+        </div>
+      </div>
+      <div class="matrix-cell q2">
+        <h4><span class="dot"></span> Wichtig, nicht dringend → Planen</h4>
+        <div id="q2-items">
+          <div class="matrix-item">Finanzübersicht erstellen</div>
+          <div class="matrix-item">Fortbildungskonzept Regionalkreis</div>
+          <div class="matrix-item">Gesundheitsvorsorge / Lauftraining</div>
+          <div class="matrix-item">Jahresplanung Kita</div>
+        </div>
+      </div>
+      <div class="matrix-cell q3">
+        <h4><span class="dot"></span> Dringend, nicht wichtig → Delegieren</h4>
+        <div id="q3-items">
+          <div class="matrix-item">Routinemails beantworten</div>
+          <div class="matrix-item">Protokolle weiterleiten</div>
+          <div class="matrix-item">Termin-Koordination</div>
+        </div>
+      </div>
+      <div class="matrix-cell q4">
+        <h4><span class="dot"></span> Weder noch → Eliminieren</h4>
+        <div id="q4-items">
+          <div class="matrix-item">Social Media scrollen</div>
+          <div class="matrix-item">Unnötige Meetings</div>
+          <div class="matrix-item">Perfektionismus bei unwichtigen Dingen</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-bottom:1.5rem;">
+      <div style="display:flex; gap:0.8rem; align-items:center; margin-bottom:0.8rem;">
+        <input type="text" id="matrixInput" placeholder="Aufgabe eingeben…" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.88rem;padding:0.65rem 1rem;border-radius:8px;outline:none;flex:1;">
+        <select id="matrixQ" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.85rem;padding:0.65rem 1rem;border-radius:8px;cursor:pointer;">
+          <option value="q1">Q1 — Sofort</option>
+          <option value="q2">Q2 — Planen</option>
+          <option value="q3">Q3 — Delegieren</option>
+          <option value="q4">Q4 — Eliminieren</option>
+        </select>
+        <button class="btn" onclick="addMatrixItem()">Hinzufügen</button>
+      </div>
+    </div>
+
+    <div class="review-block">
+      <h3>💡 Der Schlüssel-Insight für dich</h3>
+      <p style="font-size:0.85rem;color:var(--muted);line-height:1.7;">
+        Mit drei Rollen und Privatleben lebst du hauptsächlich in <strong style="color:var(--urgent)">Q1 (Feuer löschen)</strong> und <strong style="color:var(--accent)">Q3 (scheinbar dringend)</strong>.<br><br>
+        Deine Energie für <strong style="color:var(--accent2)">Q2 (wichtig, aber nicht dringend)</strong> — Finanzen, Langfristplanung, Gesundheit — fehlt, weil Q1 alles schluckt.<br><br>
+        <strong style="color:var(--text)">Lösung:</strong> Wöchentlich 2×90 Minuten für Q2 im Kalender blocken. Diese Zeit ist unantastbar.
+      </p>
+    </div>
+  </div>
+
+  <!-- ====== FOCUS TIMER ====== -->
+  <div class="panel" id="panel-timer">
+    <div class="section-title">Focus Timer</div>
+    <div class="section-sub">Pomodoro, Deep Work, oder freie Zeit — starte einfach.</div>
+
+    <div class="timer-section">
+      <div class="timer-label">⏱ Fokus-Session</div>
+      <div class="timer-display" id="timerDisplay">25:00</div>
+      <div class="timer-task-display" id="timerTaskName">Keine Aufgabe gewählt</div>
+      <div class="timer-btns">
+        <button class="btn" id="timerBtn" onclick="toggleTimer()">▶ Starten</button>
+        <button class="btn-ghost" onclick="resetTimer()">↺ Reset</button>
+      </div>
+      <div class="timer-presets">
+        <button class="preset-btn active" onclick="setTimer(25, this)">25 Min Pomodoro</button>
+        <button class="preset-btn" onclick="setTimer(50, this)">50 Min Deep Work</button>
+        <button class="preset-btn" onclick="setTimer(15, this)">15 Min Quick Burst</button>
+        <button class="preset-btn" onclick="setTimer(5, this)">5 Min Pause</button>
+        <button class="preset-btn" onclick="setTimer(90, this)">90 Min Ultradian</button>
+      </div>
+    </div>
+
+    <div style="margin-bottom:2rem;">
+      <div style="font-family:'DM Mono',monospace;font-size:0.7rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--accent);margin-bottom:0.8rem;">Aufgabe für diese Session</div>
+      <div class="capture-input">
+        <input type="text" id="timerTaskInput" placeholder="Woran arbeitest du gerade?">
+        <button class="btn" onclick="setTimerTask()">Setzen</button>
+      </div>
+    </div>
+
+    <div class="cards">
+      <div class="card" style="--card-accent: var(--accent2);">
+        <div class="card-title">🍅 Pomodoro-Technik</div>
+        <div class="card-body">25 Min fokussiert. 5 Min Pause. Nach 4 Runden: 30 Min große Pause. Ideal für Mails, Protokolle, Admin-Aufgaben.</div>
+      </div>
+      <div class="card" style="--card-accent: var(--accent4);">
+        <div class="card-title">🧠 Deep Work (90 Min)</div>
+        <div class="card-body">Ultradian-Rhythmus: Unser Gehirn arbeitet in ~90-Min-Zyklen. Für Konzept-Arbeit, Planung, kreative Aufgaben. Kein Handy!</div>
+      </div>
+      <div class="card" style="--card-accent: var(--accent);">
+        <div class="card-title">⚡ Quick Burst (15 Min)</div>
+        <div class="card-body">Für Aufgaben, die du immer wieder verschiebst. "Nur 15 Minuten" macht den Einstieg minimal. Oft macht man dann mehr.</div>
+      </div>
+    </div>
+
+    <div id="sessionLog" style="margin-top:1rem;">
+      <div style="font-family:'DM Mono',monospace;font-size:0.7rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:0.8rem;">Heutige Sessions</div>
+      <div id="sessionList" style="display:flex;flex-direction:column;gap:0.4rem;">
+        <div class="empty">Noch keine Session heute. Starte deinen ersten Timer!</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== FINANZEN ====== -->
+  <div class="panel" id="panel-finance">
+    <div class="section-title">Finanzen — Klarheit statt Vermeidung</div>
+    <div class="section-sub">Das Schwierigste ist der erste Blick. Danach wird es leichter.</div>
+
+    <div class="finance-grid">
+      <div class="finance-card">
+        <div class="finance-label">Einnahmen (Monat)</div>
+        <div class="finance-amount positive" id="incomeDisplay">—</div>
+        <div class="finance-sub">Alle Quellen zusammen</div>
+      </div>
+      <div class="finance-card">
+        <div class="finance-label">Ausgaben (Monat)</div>
+        <div class="finance-amount negative" id="expenseDisplay">—</div>
+        <div class="finance-sub">Feste + variable Kosten</div>
+      </div>
+      <div class="finance-card">
+        <div class="finance-label">Überschuss / Defizit</div>
+        <div class="finance-amount" id="balanceDisplay">—</div>
+        <div class="finance-sub">Einnahmen − Ausgaben</div>
+      </div>
+      <div class="finance-card">
+        <div class="finance-label">Notgroschen-Ziel</div>
+        <div class="finance-amount" id="emergencyDisplay">3 Monate</div>
+        <div class="finance-sub">≈ 3× deine Monatskosten</div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:2rem;">
+      <div class="review-block">
+        <h3>Einnahmen eingeben</h3>
+        <div class="capture-input" style="flex-direction:column; gap:0.5rem;">
+          <input type="number" id="incomeInput" placeholder="Hauptjob Kita (€)" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'DM Sans',sans-serif;padding:0.65rem 1rem;border-radius:8px;outline:none;width:100%;">
+          <input type="number" id="income2Input" placeholder="Nebenjob Regionalkreis (€)" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'DM Sans',sans-serif;padding:0.65rem 1rem;border-radius:8px;outline:none;width:100%;">
+          <input type="number" id="income3Input" placeholder="Sonstige Einnahmen (€)" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'DM Sans',sans-serif;padding:0.65rem 1rem;border-radius:8px;outline:none;width:100%;">
+          <button class="btn" onclick="calcFinance()" style="width:100%;">Berechnen</button>
+        </div>
+      </div>
+      <div class="review-block">
+        <h3>Ausgaben eingeben</h3>
+        <div class="capture-input" style="flex-direction:column; gap:0.5rem;">
+          <input type="number" id="exp1Input" placeholder="Miete / Wohnen (€)" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'DM Sans',sans-serif;padding:0.65rem 1rem;border-radius:8px;outline:none;width:100%;">
+          <input type="number" id="exp2Input" placeholder="Lebensmittel / Alltag (€)" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'DM Sans',sans-serif;padding:0.65rem 1rem;border-radius:8px;outline:none;width:100%;">
+          <input type="number" id="exp3Input" placeholder="Sonstige Ausgaben (€)" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'DM Sans',sans-serif;padding:0.65rem 1rem;border-radius:8px;outline:none;width:100%;">
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title" style="font-size:1.1rem;margin-bottom:1rem;">Dein Finanz-Starter-Checklist</div>
+    <div class="checklist" id="financeChecklist">
+      <div class="check-item" onclick="toggleCheck(this)">
+        <input type="checkbox">
+        <label><strong>Kontoauszüge der letzten 3 Monate herunterladen</strong><small>Alle Konten: Hauptkonto, Sparkonto, ggf. Nebenjob-Konto</small></label>
+      </div>
+      <div class="check-item" onclick="toggleCheck(this)">
+        <input type="checkbox">
+        <label><strong>Feste Kosten auflisten</strong><small>Miete, Versicherungen, Abos, Handy — alles was jeden Monat geht</small></label>
+      </div>
+      <div class="check-item" onclick="toggleCheck(this)">
+        <input type="checkbox">
+        <label><strong>50/30/20-Regel anwenden</strong><small>50% Grundbedarf · 30% Wünsche · 20% Sparen/Schulden tilgen</small></label>
+      </div>
+      <div class="check-item" onclick="toggleCheck(this)">
+        <input type="checkbox">
+        <label><strong>Dauerauftrag für Sparbetrag einrichten</strong><small>Auch 30€/Monat zählen. Erst zahlen, dann ausgeben.</small></label>
+      </div>
+      <div class="check-item" onclick="toggleCheck(this)">
+        <input type="checkbox">
+        <label><strong>Unnötige Abos kündigen</strong><small>Durchschnittlich unterschätzen Menschen ihre Abo-Kosten um 40%</small></label>
+      </div>
+      <div class="check-item" onclick="toggleCheck(this)">
+        <input type="checkbox">
+        <label><strong>Steuererklärung vormerken</strong><small>Nebenjob → abgabepflichtig. Termin im Kalender setzen!</small></label>
+      </div>
+      <div class="check-item" onclick="toggleCheck(this)">
+        <input type="checkbox">
+        <label><strong>App oder einfaches System wählen</strong><small>YNAB, Outbank, oder Excel — egal was, Hauptsache konsistent</small></label>
+      </div>
+    </div>
+
+    <div id="financeProgress" style="margin-top:1.5rem;">
+      <div class="progress-label"><span>Finanz-Klarheit</span><span id="financePercent">0%</span></div>
+      <div class="progress-bar"><div class="progress-fill" id="financeBar" style="width:0%"></div></div>
+    </div>
+  </div>
+
+  <!-- ====== WEEKLY REVIEW ====== -->
+  <div class="panel" id="panel-review">
+    <div class="section-title">Weekly Review</div>
+    <div class="section-sub">Jeden Sonntag · 20–30 Minuten · System am Leben halten</div>
+
+    <div class="review-grid">
+      <div class="review-block">
+        <h3>✅ Was habe ich diese Woche geschafft?</h3>
+        <textarea placeholder="Kita: …&#10;Regionalkreis: …&#10;Paritätischer: …&#10;Privat: …" id="review-done"></textarea>
+      </div>
+      <div class="review-block">
+        <h3>⚠️ Was liegt noch offen?</h3>
+        <textarea placeholder="Aufgaben, die ich verschoben habe…&#10;Warum? Was hat blockiert?"></textarea>
+      </div>
+      <div class="review-block">
+        <h3>📅 Was kommt nächste Woche?</h3>
+        <textarea placeholder="Wichtige Termine…&#10;Meine 3 MIT für die Woche…&#10;Was muss vorbereitet werden?"></textarea>
+      </div>
+      <div class="review-block">
+        <h3>💡 Was will ich anders machen?</h3>
+        <textarea placeholder="Eine Sache die ich verbessern will…&#10;Was hat gut funktioniert?&#10;Was hat mich erschöpft?"></textarea>
+      </div>
+    </div>
+
+    <div class="review-block" style="margin-bottom:1.5rem;">
+      <h3>🧾 Review-Checkliste</h3>
+      <div class="checklist" style="margin-top:0.5rem;">
+        <div class="check-item" onclick="toggleCheck(this)"><input type="checkbox"><label><strong>Posteingänge geleert</strong><small>E-Mail, Messenger, Notizen, Papier</small></label></div>
+        <div class="check-item" onclick="toggleCheck(this)"><input type="checkbox"><label><strong>Alle offenen Punkte erfasst</strong><small>Alles in den Capture-Tab</small></label></div>
+        <div class="check-item" onclick="toggleCheck(this)"><input type="checkbox"><label><strong>Kalender nächste 2 Wochen gecheckt</strong><small>Vorbereitung nötig? Puffer eingeplant?</small></label></div>
+        <div class="check-item" onclick="toggleCheck(this)"><input type="checkbox"><label><strong>Aufgabenliste sortiert</strong><small>Erledigte archiviert, neue priorisiert</small></label></div>
+        <div class="check-item" onclick="toggleCheck(this)"><input type="checkbox"><label><strong>3 MIT für nächste Woche festgelegt</strong><small>Eins pro Hauptbereich reicht</small></label></div>
+        <div class="check-item" onclick="toggleCheck(this)"><input type="checkbox"><label><strong>Finanz-Kurzkontrolle</strong><small>1 Min: Saldo checken, Ausgaben überfliegen</small></label></div>
+      </div>
+    </div>
+
+    <div class="review-block">
+      <h3>📊 Bereichs-Balance dieser Woche</h3>
+      <p style="font-size:0.8rem;color:var(--muted);margin-bottom:1rem;">Wie viel Energie hast du in welche Bereiche gesteckt? Ist das richtig verteilt?</p>
+      <div style="display:flex;flex-direction:column;gap:0.8rem;">
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:0.78rem;margin-bottom:0.3rem;"><span style="color:var(--accent2)">🌱 Kita-Leitung</span><span id="kp" style="font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--muted)">—</span></div>
+          <input type="range" min="0" max="100" value="40" oninput="updateBar('kita',this.value)" style="width:100%;accent-color:var(--accent2);">
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:0.78rem;margin-bottom:0.3rem;"><span style="color:var(--accent4)">🌀 Regionalkreis</span><span id="wp" style="font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--muted)">—</span></div>
+          <input type="range" min="0" max="100" value="20" oninput="updateBar('waldorf',this.value)" style="width:100%;accent-color:var(--accent4);">
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:0.78rem;margin-bottom:0.3rem;"><span style="color:var(--accent3)">🏛️ Paritätischer</span><span id="vp" style="font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--muted)">—</span></div>
+          <input type="range" min="0" max="100" value="20" oninput="updateBar('vorstand',this.value)" style="width:100%;accent-color:var(--accent3);">
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:0.78rem;margin-bottom:0.3rem;"><span style="color:var(--accent)">💛 Privat / Finanzen / Ich</span><span id="pp" style="font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--muted)">—</span></div>
+          <input type="range" min="0" max="100" value="20" oninput="updateBar('privat',this.value)" style="width:100%;accent-color:var(--accent);">
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  // ====== SAFE STORAGE (works even if localStorage is blocked) ======
+  var memoryStore = {};
+  var storageOK = (function() {
+    try {
+      var t = '__kz_test__';
+      window.localStorage.setItem(t, '1');
+      window.localStorage.removeItem(t);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  })();
+
+  function storeGet(key) {
+    try { return storageOK ? window.localStorage.getItem(key) : (memoryStore[key] || null); }
+    catch (e) { return memoryStore[key] || null; }
+  }
+  function storeSet(key, val) {
+    try { if (storageOK) { window.localStorage.setItem(key, val); } else { memoryStore[key] = val; } }
+    catch (e) { memoryStore[key] = val; }
+  }
+
+  // ====== STATE ======
+  var tasks = [];
+  try { tasks = JSON.parse(storeGet('kz-tasks') || '[]'); } catch (e) { tasks = []; }
+  var currentFilter = 'all';
+
+  var timerInterval = null;
+  var timerSeconds = 25 * 60;
+  var timerRunning = false;
+  var timerMax = 25 * 60;
+  var sessions = [];
+
+  // ====== TABS ======
+  window.showTab = function(id) {
+    document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+    document.querySelectorAll('.panel').forEach(function(p) { p.classList.remove('active'); });
+    var tabs = ['guide','capture','matrix','timer','finance','review'];
+    var idx = tabs.indexOf(id);
+    if (idx > -1) document.querySelectorAll('.tab')[idx].classList.add('active');
+    var panel = document.getElementById('panel-' + id);
+    if (panel) panel.classList.add('active');
+  };
+
+  // ====== TASKS ======
+  function saveTasks() { storeSet('kz-tasks', JSON.stringify(tasks)); }
+
+  window.addTask = function() {
+    var input = document.getElementById('taskInput');
+    var area = document.getElementById('areaSelect').value;
+    var priority = document.getElementById('prioritySelect').value;
+    var text = input.value.trim();
+    if (!text) return;
+    tasks.unshift({ id: Date.now(), text: text, area: area, priority: priority, done: false });
+    saveTasks();
+    renderTasks();
+    input.value = '';
+    input.focus();
+  };
+
+  window.filterTasks = function(f, btn) {
+    currentFilter = f;
+    document.querySelectorAll('.preset-btn').forEach(function(b) { b.classList.remove('active'); });
+    if (btn) btn.classList.add('active');
+    renderTasks();
+  };
+
+  function renderTasks() {
+    var list = document.getElementById('taskList');
+    var empty = document.getElementById('emptyState');
+    if (!list) return;
+    var areaNames = { kita: 'Kita', waldorf: 'Regionalkreis', vorstand: 'Parit\u00e4tischer', privat: 'Privat' };
+
+    var filtered = tasks.filter(function(t) {
+      if (currentFilter === 'all') return !t.done;
+      if (currentFilter === 'done') return t.done;
+      return t.area === currentFilter && !t.done;
+    });
+
+    list.querySelectorAll('.task-item').forEach(function(el) { el.remove(); });
+    if (empty) empty.style.display = filtered.length === 0 ? 'block' : 'none';
+
+    filtered.forEach(function(t) {
+      var el = document.createElement('div');
+      el.className = 'task-item' + (t.done ? ' done' : '');
+      var prioMark = t.priority === 'hoch' ? '\ud83d\udd34 ' : '';
+      var checkMark = t.done ? '\u2713' : '';
+      el.innerHTML =
+        '<div class="task-check" onclick="toggleTask(' + t.id + ')">' + checkMark + '</div>' +
+        '<div class="task-text">' + prioMark + escapeHtml(t.text) + '</div>' +
+        '<div class="task-area area-' + t.area + '">' + areaNames[t.area] + '</div>' +
+        '<span class="task-del" onclick="deleteTask(' + t.id + ')">\u2715</span>';
+      list.appendChild(el);
+    });
+
+    var done = tasks.filter(function(t) { return t.done; }).length;
+    var total = tasks.length;
+    var stats = document.getElementById('taskStats');
+    if (stats) stats.textContent = total > 0 ? (done + '/' + total + ' erledigt') : '';
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  window.toggleTask = function(id) {
+    var t = tasks.find(function(t) { return t.id === id; });
+    if (t) { t.done = !t.done; saveTasks(); renderTasks(); }
+  };
+
+  window.deleteTask = function(id) {
+    tasks = tasks.filter(function(t) { return t.id !== id; });
+    saveTasks(); renderTasks();
+  };
+
+  window.clearDone = function() {
+    tasks = tasks.filter(function(t) { return !t.done; });
+    saveTasks(); renderTasks();
+  };
+
+  // ====== MATRIX ======
+  window.addMatrixItem = function() {
+    var input = document.getElementById('matrixInput');
+    var q = document.getElementById('matrixQ').value;
+    var text = input.value.trim();
+    if (!text) return;
+    var cell = document.getElementById(q + '-items');
+    var el = document.createElement('div');
+    el.className = 'matrix-item';
+    el.textContent = text;
+    el.onclick = function() { el.remove(); };
+    cell.appendChild(el);
+    input.value = '';
+  };
+
+  // ====== TIMER ======
+  window.setTimer = function(min, btn) {
+    if (timerRunning) return;
+    timerSeconds = min * 60;
+    timerMax = min * 60;
+    document.querySelectorAll('.preset-btn').forEach(function(b) { b.classList.remove('active'); });
+    if (btn) btn.classList.add('active');
+    updateTimerDisplay();
+  };
+
+  function updateTimerDisplay() {
+    var m = String(Math.floor(timerSeconds / 60));
+    var s = String(timerSeconds % 60);
+    while (m.length < 2) m = '0' + m;
+    while (s.length < 2) s = '0' + s;
+    var disp = document.getElementById('timerDisplay');
+    if (disp) disp.textContent = m + ':' + s;
+  }
+
+  window.toggleTimer = function() {
+    var btn = document.getElementById('timerBtn');
+    if (timerRunning) {
+      clearInterval(timerInterval);
+      timerRunning = false;
+      if (btn) btn.textContent = '\u25b6 Fortsetzen';
+    } else {
+      timerRunning = true;
+      if (btn) btn.textContent = '\u23f8 Pause';
+      timerInterval = setInterval(function() {
+        timerSeconds = timerSeconds - 1;
+        updateTimerDisplay();
+        if (timerSeconds <= 0) {
+          clearInterval(timerInterval);
+          timerRunning = false;
+          if (btn) btn.textContent = '\u25b6 Starten';
+          var taskEl = document.getElementById('timerTaskName');
+          var task = taskEl ? taskEl.textContent : '';
+          logSession(timerMax, task);
+          alert('\u2713 Session beendet! Gut gemacht.');
+          timerSeconds = timerMax;
+          updateTimerDisplay();
+        }
+      }, 1000);
+    }
+  };
+
+  window.resetTimer = function() {
+    clearInterval(timerInterval);
+    timerRunning = false;
+    timerSeconds = timerMax;
+    var btn = document.getElementById('timerBtn');
+    if (btn) btn.textContent = '\u25b6 Starten';
+    updateTimerDisplay();
+  };
+
+  window.setTimerTask = function() {
+    var val = document.getElementById('timerTaskInput').value.trim();
+    if (val) document.getElementById('timerTaskName').textContent = val;
+  };
+
+  function logSession(seconds, task) {
+    var min = Math.round(seconds / 60);
+    sessions.push({ min: min, task: task, time: new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) });
+    renderSessions();
+  }
+
+  function renderSessions() {
+    var list = document.getElementById('sessionList');
+    if (!list) return;
+    list.innerHTML = '';
+    if (sessions.length === 0) {
+      list.innerHTML = '<div class="empty">Noch keine Session heute. Starte deinen ersten Timer!</div>';
+      return;
+    }
+    sessions.forEach(function(s) {
+      var el = document.createElement('div');
+      el.className = 'task-item';
+      var taskLabel = (s.task && s.task !== 'Keine Aufgabe gew\u00e4hlt') ? escapeHtml(s.task) : '(freie Session)';
+      el.innerHTML =
+        '<div class="task-check done" style="background:var(--done);border-color:var(--done);color:white">\u2713</div>' +
+        '<div class="task-text">' + taskLabel + '</div>' +
+        '<div class="task-area" style="color:var(--accent2)">' + s.min + ' Min</div>' +
+        '<div class="task-area">' + s.time + '</div>';
+      list.appendChild(el);
+    });
+  }
+
+  // ====== FINANCE ======
+  window.calcFinance = function() {
+    function val(id) { var e = document.getElementById(id); return e ? (parseFloat(e.value) || 0) : 0; }
+    var income = val('incomeInput') + val('income2Input') + val('income3Input');
+    var expense = val('exp1Input') + val('exp2Input') + val('exp3Input');
+    var balance = income - expense;
+    var euro = function(n) { return n.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' }); };
+
+    var incEl = document.getElementById('incomeDisplay');
+    var expEl = document.getElementById('expenseDisplay');
+    if (incEl) incEl.textContent = income > 0 ? euro(income) : '\u2014';
+    if (expEl) expEl.textContent = expense > 0 ? euro(expense) : '\u2014';
+
+    var balEl = document.getElementById('balanceDisplay');
+    if (balEl && (income > 0 || expense > 0)) {
+      balEl.textContent = euro(balance);
+      balEl.className = 'finance-amount ' + (balance >= 0 ? 'positive' : 'negative');
+    }
+    if (expense > 0) {
+      var emEl = document.getElementById('emergencyDisplay');
+      if (emEl) emEl.textContent = euro(expense * 3);
+    }
+  };
+
+  window.toggleCheck = function(item) {
+    var cb = item.querySelector('input[type="checkbox"]');
+    cb.checked = !cb.checked;
+    updateFinanceProgress();
+  };
+
+  function updateFinanceProgress() {
+    var all = document.querySelectorAll('#financeChecklist input[type="checkbox"]');
+    var checked = 0;
+    all.forEach(function(c) { if (c.checked) checked++; });
+    var pct = all.length ? Math.round(checked / all.length * 100) : 0;
+    var pEl = document.getElementById('financePercent');
+    var bEl = document.getElementById('financeBar');
+    if (pEl) pEl.textContent = pct + '%';
+    if (bEl) bEl.style.width = pct + '%';
+  }
+
+  // ====== REVIEW BARS ======
+  window.updateBar = function(area, valv) {
+    var map = { kita: 'kp', waldorf: 'wp', vorstand: 'vp', privat: 'pp' };
+    var el = document.getElementById(map[area]);
+    if (el) el.textContent = valv + '%';
+  };
+
+  // ====== INIT (runs after DOM is ready) ======
+  function init() {
+    var dateEl = document.getElementById('dateDisplay');
+    if (dateEl) {
+      dateEl.textContent = new Date().toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    }
+    renderTasks();
+    updateTimerDisplay();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+</body>
+</html>
